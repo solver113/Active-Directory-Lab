@@ -1,57 +1,78 @@
-
-# Active Directory Domain Controller Deployment
+# Active Directory Lab: Domain Controller Deployment & Workstation Integration
 
 ## Executive Summary
-This project documents the installation, configuration, and promotion of a Windows Server 2025 Domain Controller within an isolated enterprise virtual lab environment. Built under the **Solver Cybertech** engineering lab, this deployment serves as the foundational Identity and Access Management (IAM) infrastructure for subsequent Active Directory security testing, Group Policy Object (GPO) deployment, and defensive SecOps monitoring.
+This project documents the deployment of an enterprise Active Directory identity and access environment built under the **Solver Cybertech** lab framework. The infrastructure features a Windows Server 2025 Domain Controller managing domain authority, customized Organizational Units (OUs), Role-Based Access Control (RBAC) account structures, domain-joined client workstations, and secure Remote Desktop Protocol (RDP) connectivity.
 
 ---
 
 ## Technical Overview
-* **OS Version:** Windows Server 2025 Standard Evaluation
 * **Domain Name:** `solver.local`
-* **Server Role:** Primary Domain Controller (PDC) & DNS Server
-* **Networking Mode:** Virtual NAT Network
-* **IPv4 Address:** `192.168.245.162` (Static)
+* **Domain Controller OS:** Windows Server 2025 Standard Evaluation
+* **Domain Controller IP:** `192.168.245.162` (Static)
 * **Default Gateway:** `192.168.245.2`
-* **Preferred DNS:** `127.0.0.1` (Loopback Authority)
+* **Preferred DNS:** `127.0.0.1` (Loopback)
+* **Client OS:** Windows Workstation (Domain-Joined)
+* **Identity Schema:** Custom OUs (`solver_users`), Standard Domain Users, & Tiered Domain Admins
 
 ---
 
 ## Deployment & Execution Steps
 
-### Phase 1: Prerequisite Staging & Static IP Binding
-Before promoting a server to a Domain Controller, a persistent static IP configuration is required to prevent DNS resolution failures across domain-joined hosts.
+### Phase 1: Network Staging & Static IP Binding
+To establish persistent domain authority and avoid DNS failures, static TCP/IPv4 parameters were configured on the server prior to role promotion.
 
-* Configured static TCP/IPv4 parameters matching the NAT subnet range.
-* Set the preferred DNS server to `127.0.0.1` so the host targets its local Active Directory DNS service once installed.
+* Configured static IPv4 addressing (`192.168.245.162`).
+* Bounded preferred DNS to `127.0.0.1` for local Active Directory resolution.
 
 ![Static IP Configuration](01-static-ip-config.png)
 
 ---
 
 ### Phase 2: Role Installation & Forest Promotion
-1. Initialized the **Add Roles and Features Wizard** in Server Manager and selected **Active Directory Domain Services (AD DS)** along with integrated DNS features.
-2. Selected **"Add a new forest"** and established the Root Domain Name as `solver.local`.
-3. Configured the Directory Services Restore Mode (DSRM) password and proceeded through prerequisite checks.
+1. Installed **Active Directory Domain Services (AD DS)** and DNS server roles via Server Manager.
+2. Promoted the host to a Primary Domain Controller for the root forest `solver.local`.
+3. Validated post-promotion administration via `SOLVER\Administrator`.
 
 ![AD DS Role Selection](02-ad-ds-role-selection.png)
 ![Forest Configuration](03-forest-config.png)
-
----
-
-### Phase 3: Post-Promotion Verification & Management
-Following server reboot and promotion completion:
-* Verified domain authority via administrator authentication (`SOLVER\Administrator`).
-* Confirmed domain schema, built-in containers, and default OUs using the **Active Directory Administrative Center**.
-
 ![Domain Login Verification](04-post-promotion-login.png)
 ![Active Directory Administrative Center](05-ad-structure-verification.png)
 
 ---
 
-## Key Takeaways
-* **DNS Dependency:** Active Directory relies entirely on correct DNS architecture. Pointing the network interface to loopback (`127.0.0.1`) ensures localized authority for all future domain queries.
-* **Isolated Forest Staging:** Warnings regarding public DNS delegation can be safely bypassed in localized lab environments as internal root authority is generated locally.
+### Phase 3: Identity & Access Management (IAM) Structuring
+To enforce least privilege and clear administrative boundaries, a dedicated Organizational Unit structure was established:
+* Created custom OU: `solver_users`.
+* Provisioned standard unprivileged domain account (`jane`).
+* Provisioned administrative account (`solver admin`) assigned to the `Domain Admins` security group.
+
+![Active Directory Users and OUs](06-ad-user-creation.png)
+
+---
+
+### Phase 4: Workstation Domain Join & Connectivity
+1. Configured the client workstation's network interface with static DNS pointing directly to the Domain Controller (`192.168.245.162`).
+2. Initiated domain join operation to `solver.local` using authorized administrative credentials.
+3. Successfully authenticated and established domain membership.
+
+![Workstation DNS Configuration](07-workstation-dns-config.png)
+![Domain Join Success](08-domain-join-success.png)
+
+---
+
+### Phase 5: Remote Desktop Protocol (RDP) Verification
+* Enabled Remote Desktop administrative access across domain hosts.
+* Executed cross-network RDP authentication from the client workstation using domain credentials (`solver admin`).
+* Verified session establishment, user profile generation, and network path viability.
+
+![RDP Session Established](09-rdp-session-established.png)
+
+---
+
+## Key Security Takeaways
+* **DNS Resolution is Paramount:** Client domain joins fail if workstation DNS isn't explicitly pointed to the DC's IP address.
+* **Privilege Separation:** Establishing segregated OUs (`solver_users`) allows granular Group Policy Object (GPO) application and RBAC enforcement across standard vs. administrative accounts.
+* **Remote Management:** Securing network access over RDP enables administrative flexibility while laying the baseline for future audit logging and SecOps traffic inspection.
 
 ---
 
