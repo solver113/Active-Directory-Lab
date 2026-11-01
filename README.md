@@ -1,7 +1,7 @@
-# Active Directory Lab: Domain Controller Deployment & Workstation Integration
+# Active Directory Lab: DC Deployment, IAM, & GPO Hardening
 
 ## Executive Summary
-This project documents the deployment of an enterprise Active Directory identity and access environment built under the **Solver Cybertech** lab framework. The infrastructure features a Windows Server 2025 Domain Controller managing domain authority, customized Organizational Units (OUs), Role-Based Access Control (RBAC) account structures, domain-joined client workstations, and secure Remote Desktop Protocol (RDP) connectivity.
+This project documents an enterprise Active Directory deployment built under the **Solver Cybertech** engineering lab. It tracks the complete lifecycle from Windows Server 2025 Domain Controller promotion and client workstation joining, to advanced identity management, security group scoping, and Group Policy Object (GPO) security hardening for Remote Desktop Protocol (RDP) access control.
 
 ---
 
@@ -9,70 +9,62 @@ This project documents the deployment of an enterprise Active Directory identity
 * **Domain Name:** `solver.local`
 * **Domain Controller OS:** Windows Server 2025 Standard Evaluation
 * **Domain Controller IP:** `192.168.245.162` (Static)
-* **Default Gateway:** `192.168.245.2`
-* **Preferred DNS:** `127.0.0.1` (Loopback)
 * **Client OS:** Windows Workstation (Domain-Joined)
-* **Identity Schema:** Custom OUs (`solver_users`), Standard Domain Users, & Tiered Domain Admins
+* **Identity Schema:** Custom OU (`solver_users`), Standard Users (`jane`, `goodluck`), & Security Groups (`rdp access`)
 
 ---
 
-## Deployment & Execution Steps
+## Deployment & Execution Phases
 
-### Phase 1: Network Staging & Static IP Binding
-To establish persistent domain authority and avoid DNS failures, static TCP/IPv4 parameters were configured on the server prior to role promotion.
-
-* Configured static IPv4 addressing (`192.168.245.162`).
-* Bounded preferred DNS to `127.0.0.1` for local Active Directory resolution.
+### Phase 1: Core DC Infrastructure & Domain Join
+* Promoted host to Primary Domain Controller (`solver.local`) with localized DNS authority (`127.0.0.1`).
+* Configured client DNS to target the DC (`192.168.245.162`) and completed the workstation domain join.
 
 ![Static IP Configuration](01-static-ip-config.png)
-
----
-
-### Phase 2: Role Installation & Forest Promotion
-1. Installed **Active Directory Domain Services (AD DS)** and DNS server roles via Server Manager.
-2. Promoted the host to a Primary Domain Controller for the root forest `solver.local`.
-3. Validated post-promotion administration via `SOLVER\Administrator`.
-
 ![AD DS Role Selection](02-ad-ds-role-selection.png)
 ![Forest Configuration](03-forest-config.png)
 ![Domain Login Verification](04-post-promotion-login.png)
-![Active Directory Administrative Center](05-ad-structure-verification.png)
-
----
-
-### Phase 3: Identity & Access Management (IAM) Structuring
-To enforce least privilege and clear administrative boundaries, a dedicated Organizational Unit structure was established:
-* Created custom OU: `solver_users`.
-* Provisioned standard unprivileged domain account (`jane`).
-* Provisioned administrative account (`solver admin`) assigned to the `Domain Admins` security group.
-
-![Active Directory Users and OUs](06-ad-user-creation.png)
-
----
-
-### Phase 4: Workstation Domain Join & Connectivity
-1. Configured the client workstation's network interface with static DNS pointing directly to the Domain Controller (`192.168.245.162`).
-2. Initiated domain join operation to `solver.local` using authorized administrative credentials.
-3. Successfully authenticated and established domain membership.
-
+![Active Directory Structure](05-ad-structure-verification.png)
 ![Workstation DNS Configuration](07-workstation-dns-config.png)
 ![Domain Join Success](08-domain-join-success.png)
 
 ---
 
-### Phase 5: Remote Desktop Protocol (RDP) Verification
-* Enabled Remote Desktop administrative access across domain hosts.
-* Executed cross-network RDP authentication from the client workstation using domain credentials (`solver admin`).
-* Verified session establishment, user profile generation, and network path viability.
+### Phase 2: IAM Structuring & RBAC Security Groups
+1. Established the `solver_users` Organizational Unit (OU).
+2. Provisioned standard domain user accounts (`jane`, `goodluck`) and administrative accounts (`solver admin`).
+3. Created the **`rdp access`** Global Security Group and assigned `jane` as a member to enforce Role-Based Access Control (RBAC).
 
-![RDP Session Established](09-rdp-session-established.png)
+![Active Directory Users and OUs](06-ad-user-creation.png)
+![RDP Security Group Configuration](10-rdp-security-group.png)
 
 ---
 
-## Key Security Takeaways
-* **DNS Resolution is Paramount:** Client domain joins fail if workstation DNS isn't explicitly pointed to the DC's IP address.
-* **Privilege Separation:** Establishing segregated OUs (`solver_users`) allows granular Group Policy Object (GPO) application and RBAC enforcement across standard vs. administrative accounts.
-* **Remote Management:** Securing network access over RDP enables administrative flexibility while laying the baseline for future audit logging and SecOps traffic inspection.
+### Phase 3: GPO Security Hardening (Least-Privilege RDP Enforcement)
+To restrict lateral movement and prevent unauthorized remote access, generic RDP permissions were revoked enterprise-wide via Group Policy.
+
+1. **GPO Creation:** Created and linked the `Restrict_RDP_Policy` GPO at the domain root level.
+2. **User Rights Assignment:** Modified *Allow log on through Remote Desktop Services* policy setting to grant explicit rights **ONLY** to `SOLVER\Domain Admins` and `SOLVER\rdp access`.
+3. **Policy Enforcement:** Forced group policy updates (`gpupdate /force`) across domain hosts.
+
+![GPO Domain Link](11-gpo-linked-ou.png)
+![User Rights Assignment Policy](12-user-rights-assignment.png)
+
+---
+
+### Phase 4: Access Control Validation & Proof-of-Concept Testing
+
+* **Positive Control (Authorized User `jane`):** RDP authentication succeeded due to explicit membership in `SOLVER\rdp access`.
+* **Negative Control (Unauthorized User `goodluck`):** RDP authentication was explicitly denied by system security policy, generating an access restriction error.
+
+![Authorized RDP Session Success](13-rdp-access-success.png)
+![Unauthorized RDP Access Denied](14-rdp-access-denied.png)
+
+---
+
+## Key Defensive Takeaways
+* **Least Privilege Enforcement:** Restricting RDP via GPO User Rights Assignment ensures standard domain users cannot arbitrarily initiate remote sessions without explicit security group authorization.
+* **Negative Security Verification:** Validating policy enforcement with an unauthorized account (`goodluck`) confirms that security baselines are actively restricting access as intended.
 
 ---
 
