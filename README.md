@@ -1,7 +1,7 @@
-# Active Directory Lab: DC Deployment, IAM, & GPO Hardening
+# Enterprise Active Directory & Security Hardening Lab
 
 ## Executive Summary
-This project documents an enterprise Active Directory deployment built under the **Solver Cybertech** engineering lab framework. It tracks the complete engineering lifecycle from Windows Server 2025 Domain Controller promotion and client workstation domain joining, to advanced Identity and Access Management (IAM), Role-Based Access Control (RBAC), and multi-layered Group Policy Object (GPO) security hardening for Remote Desktop Protocol (RDP) access and PowerShell script execution control.
+This project documents an enterprise-grade Active Directory infrastructure built under the **Solver Cybertech** engineering lab framework. It covers the full lifecycle from Windows Server 2025 Domain Controller promotion and client domain joining, to advanced Identity & Access Management (IAM), Role-Based Access Control (RBAC), Group Policy Object (GPO) security hardening, and PowerShell detection/audit logging telemetry.
 
 ---
 
@@ -14,7 +14,7 @@ This project documents an enterprise Active Directory deployment built under the
 
 ---
 
-## Deployment & Execution Phases
+## Deployment & Defensive Hardening Phases
 
 ### Phase 1: Core DC Infrastructure & Domain Join
 * Promoted host to Primary Domain Controller (`solver.local`) with localized DNS authority (`127.0.0.1`).
@@ -40,14 +40,14 @@ This project documents an enterprise Active Directory deployment built under the
 
 ---
 
-### Phase 3: GPO Security Hardening — Least-Privilege RDP Enforcement
-To restrict lateral movement and prevent unauthorized remote access, generic RDP permissions were revoked enterprise-wide via Group Policy.
+### Phase 3: GPO Hardening — Least-Privilege RDP Enforcement
+To restrict lateral movement, generic Remote Desktop permissions were revoked enterprise-wide via Group Policy.
 
-1. **GPO Creation:** Created and linked the `Restrict_RDP_Policy` GPO at the domain root level.
-2. **User Rights Assignment:** Modified *Allow log on through Remote Desktop Services* policy setting to grant explicit rights **ONLY** to `SOLVER\Domain Admins` and `SOLVER\rdp access`.
-3. **Policy Enforcement & Validation:** 
-   * **Authorized Access (`jane`):** RDP authentication succeeded due to explicit membership in `SOLVER\rdp access`.
-   * **Unauthorized Access (`goodluck`):** RDP authentication was explicitly denied by policy, generating an access restriction error.
+1. **GPO Creation:** Created and linked `Restrict_RDP_Policy` at the domain root level.
+2. **User Rights Assignment:** Configured *Allow log on through Remote Desktop Services* to grant explicit rights **ONLY** to `SOLVER\Domain Admins` and `SOLVER\rdp access`.
+3. **Validation & Negative Testing:** 
+   * **Authorized User (`jane`):** RDP authentication succeeded via `SOLVER\rdp access` membership.
+   * **Unauthorized User (`goodluck`):** RDP authentication was explicitly denied by security policy.
 
 ![GPO Domain Link](11-gpo-linked-ou.png)
 ![User Rights Assignment Policy](12-user-rights-assignment.png)
@@ -56,15 +56,12 @@ To restrict lateral movement and prevent unauthorized remote access, generic RDP
 
 ---
 
-### Phase 4: GPO Security Hardening — PowerShell Execution Restriction
-Unrestricted PowerShell script execution presents a significant vector for initial access and fileless malware staging. Script execution controls were enforced enterprise-wide via GPO.
+### Phase 4: GPO Hardening — PowerShell Execution Restriction
+Unrestricted script execution presents a severe risk for fileless malware staging. Execution controls were enforced enterprise-wide via GPO.
 
-1. **Baseline State (Unrestricted Execution):** Executed an unsigned PowerShell script (`test.ps1`) on the domain workstation prior to policy enforcement, demonstrating successful execution.
-2. **GPO Hardening:** Created and linked `Restrict_PowerShell_Execution` at the domain root, enabling **Turn on Script Execution** set to require signed scripts.
-3. **Policy Verification & Enforcement:**
-   * Executed `gpupdate /force` across client endpoints.
-   * Attempted execution of `test.ps1` post-enforcement—resulting in an immediate system execution policy block error.
-   * Validated GPO policy hierarchy via `Get-ExecutionPolicy -List`, confirming `MachinePolicy` precedence over local configuration.
+1. **Baseline State:** Demonstrated successful execution of an unsigned PowerShell script (`test.ps1`) prior to policy enforcement.
+2. **GPO Hardening:** Enforced `Restrict_PowerShell_Execution` via Administrative Templates, requiring signed scripts domain-wide.
+3. **Validation & A/B Testing:** Attempted execution of `test.ps1` post-enforcement, resulting in an immediate system execution policy block. Verified GPO precedence via `Get-ExecutionPolicy -List`.
 
 ![Unrestricted PowerShell Execution (Before)](15-powershell-execution-before.png)
 ![PowerShell Execution Policy GPO](16-gpo-powershell-policy.png)
@@ -74,10 +71,27 @@ Unrestricted PowerShell script execution presents a significant vector for initi
 
 ---
 
+### Phase 5: Audit & Detection Telemetry — PowerShell Script Block Logging
+Restricting execution stops basic attacks, but enterprise SecOps requires audit trails to detect obfuscated commands and fileless threats.
+
+1. **GPO Logging Baseline:** Created and linked `Enable_PowerShell_Logging` at the domain level.
+   * **Module Logging:** Enabled for all modules (`*`).
+   * **Script Block Logging:** Enabled to capture start/stop events and full execution payloads (Event ID 4104).
+2. **Telemetry Validation:** Executed a test script block on a target workstation and inspected Windows Event Viewer (`Microsoft-Windows-PowerShell/Operational`).
+3. **De-obfuscation Verification:** Confirmed that **Event ID 4104** recorded the exact script payload (`solver cybertech log verification test`) inside the log details.
+
+![PowerShell Logging GPO Configured](20-gpo-logging-configured.png)
+![PowerShell Logging GPO Linked](21-gpo-logging-linked.png)
+![Event Viewer Event ID 4104 Logs](22-powershell-event-viewer-logs.png)
+![Script Block Telemetry Capture](23-script-block-deobfuscation.png)
+
+---
+
 ## Key Defensive Engineering Takeaways
-* **Least Privilege Enforcement:** Restricting RDP access via GPO User Rights Assignment prevents lateral movement by standard domain accounts lacking explicit authorization.
-* **Execution Prevention Controls:** Centralized script execution restrictions neutralize arbitrary fileless malware staging and unapproved script execution.
-* **Proof-of-Concept Validation:** Combining positive control validation with explicit negative control testing confirms security baselines are actively enforcing controls rather than remaining theoretical configurations.
+* **Least Privilege Access:** Restricting RDP via User Rights Assignment neutralizes lateral movement attempts by unauthorized standard domain users.
+* **Execution Prevention:** Centralized script execution controls prevent unapproved script execution and fileless malware staging.
+* **Security Telemetry & Auditing:** Centralized Script Block Logging (Event ID 4104) ensures full visibility into PowerShell execution, capturing de-obfuscated script payloads for SIEM analysis and incident investigation.
+* **Proof-of-Concept Rigor:** Combining positive access checks with explicit negative security testing and event audit verification proves security baselines actively enforce policy.
 
 ---
 
