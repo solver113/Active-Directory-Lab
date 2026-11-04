@@ -1,25 +1,25 @@
-# Enterprise Active Directory, Defensive Hardening & Disaster Recovery Lab
+# Enterprise Active Directory, Security Hardening & Remote Management Lab
 
 ## Executive Summary
-This repository documents an enterprise-grade Active Directory infrastructure built under the **Solver Cybertech** engineering lab framework. It demonstrates end-to-end expertise spanning Windows Server 2025 Domain Controller deployment, client domain onboarding, Identity & Access Management (IAM), Role-Based Access Control (RBAC), Group Policy Object (GPO) security hardening, PowerShell detection telemetry (Event ID 4104), and Volume Shadow Copy Service (VSS) disaster recovery baselines.
+This repository documents a production-grade, enterprise Active Directory infrastructure engineered under the **Solver Cybertech** technical brand. Built on **Windows Server 2025 Standard**, this project provides full architectural proof-of-work across Domain Services, Identity & Access Management (IAM), Role-Based Access Control (RBAC), Group Policy Object (GPO) security baselines, PowerShell detection telemetry (Event ID 4104), Volume Shadow Copy Service (VSS) data protection, and enterprise WinRM remote management automation.
 
 ---
 
-## Technical Infrastructure Overview
+## Technical Architecture & Identity Schema
 * **Domain Name:** `solver.local`
 * **Domain Controller Host:** Windows Server 2025 Standard Evaluation
 * **Domain Controller IP:** `192.168.245.162` (Static)
-* **Client Host:** Windows Workstation (Domain-Joined)
-* **Identity Schema:** Custom OU (`solver_users`), Standard Accounts (`jane`, `goodluck`), & Security Groups (`rdp access`)
-* **Network Storage:** Centralized SMB File Share (`\\SOLVER\CompanyShare`)
+* **Client Endpoints:** Windows Workstation (Domain-Joined)
+* **Directory Structure:** Custom OU (`solver_users`), Standard Users (`jane`, `goodluck`), Administrative Users (`solver admin`), Security Groups (`rdp access`)
+* **Storage Resilience:** Centralized SMB File Share (`\\SOLVER\CompanyShare`) with VSS integration
 
 ---
 
-## Deployment & Defensive Hardening Phases
+## Architectural Implementation & Engineering Phases
 
-### Phase 1: Core DC Infrastructure & Domain Join
-* Promoted primary Domain Controller (`solver.local`) with localized DNS authority (`127.0.0.1`).
-* Configured client workstation DNS (`192.168.245.162`) and executed domain join.
+### Phase 1: Core DC Infrastructure & Client Onboarding
+* Provisioned Primary Domain Controller (`solver.local`) with static network parameters and localized DNS authority (`127.0.0.1`).
+* Configured client DNS binding (`192.168.245.162`) and executed seamless workstation domain joining.
 
 ![Static IP Configuration](01-static-ip-config.png)
 ![AD DS Role Selection](02-ad-ds-role-selection.png)
@@ -31,9 +31,9 @@ This repository documents an enterprise-grade Active Directory infrastructure bu
 
 ---
 
-### Phase 2: IAM Structuring & RBAC Security Groups
-1. Provisioned `solver_users` Organizational Unit (OU).
-2. Created user accounts (`jane`, `goodluck`) and administrative identities (`solver admin`).
+### Phase 2: Identity & Access Management (IAM) and RBAC Structure
+1. Structured Organizational Unit layout (`solver_users`) to segregate accounts from default containers.
+2. Provisioned standard domain user accounts and dedicated administrative accounts.
 3. Created **`rdp access`** Global Security Group to enforce Role-Based Access Control (RBAC).
 
 ![Active Directory Users and OUs](06-ad-user-creation.png)
@@ -41,14 +41,14 @@ This repository documents an enterprise-grade Active Directory infrastructure bu
 
 ---
 
-### Phase 3: GPO Hardening — Least-Privilege RDP Enforcement
-To neutralize lateral movement risks, generic Remote Desktop privileges were revoked domain-wide.
+### Phase 3: GPO Security Hardening — Least-Privilege RDP Enforcement
+Mitigated lateral movement risks by revoking broad Remote Desktop privileges across domain endpoints.
 
-1. **GPO Deployment:** Created and linked `Restrict_RDP_Policy` at the domain root.
-2. **User Rights Assignment:** Restricted *Allow log on through Remote Desktop Services* exclusively to `SOLVER\Domain Admins` and `SOLVER\rdp access`.
-3. **A/B Access Verification:** 
-   * **Authorized User (`jane`):** Successful RDP authentication via `rdp access` group membership.
-   * **Unauthorized User (`goodluck`):** Access explicitly denied by domain policy.
+1. **Policy Deployment:** Enforced `Restrict_RDP_Policy` GPO at the domain root level.
+2. **User Rights Assignment:** Restricted *Allow log on through Remote Desktop Services* strictly to `SOLVER\Domain Admins` and `SOLVER\rdp access`.
+3. **Negative Access Controls Validation:** 
+   * **Authorized Identity (`jane`):** RDP authentication succeeded via explicit `rdp access` group membership.
+   * **Unauthorized Identity (`goodluck`):** Access explicitly denied by security policy baseline.
 
 ![GPO Domain Link](11-gpo-linked-ou.png)
 ![User Rights Assignment Policy](12-user-rights-assignment.png)
@@ -57,12 +57,12 @@ To neutralize lateral movement risks, generic Remote Desktop privileges were rev
 
 ---
 
-### Phase 4: GPO Hardening — PowerShell Execution Restriction
-Enforced centralized execution controls to prevent unauthorized script execution and fileless malware staging.
+### Phase 4: GPO Security Hardening — PowerShell Execution Controls
+Established enterprise script execution baselines to prevent unauthorized code execution and fileless malware staging.
 
-1. **Unrestricted Baseline:** Confirmed baseline execution of unsigned scripts (`test.ps1`).
-2. **GPO Hardening:** Applied `Restrict_PowerShell_Execution` GPO, enforcing `AllSigned` restrictions domain-wide.
-3. **Verification:** Validated that unsigned script execution was immediately blocked by policy and confirmed precedence via `Get-ExecutionPolicy -List`.
+1. **Baseline State:** Verified baseline execution of unsigned scripts (`test.ps1`).
+2. **Execution Hardening:** Deployed `Restrict_PowerShell_Execution` GPO, enforcing `AllSigned` restrictions enterprise-wide.
+3. **A/B Policy Verification:** Confirmed immediate system-level execution blocks for unsigned code and validated policy precedence via `Get-ExecutionPolicy -List`.
 
 ![Unrestricted PowerShell Execution (Before)](15-powershell-execution-before.png)
 ![PowerShell Execution Policy GPO](16-gpo-powershell-policy.png)
@@ -72,14 +72,14 @@ Enforced centralized execution controls to prevent unauthorized script execution
 
 ---
 
-### Phase 5: Audit & Detection Telemetry — PowerShell Script Block Logging
-Implemented centralized log auditing to maintain full visibility into fileless execution payloads and de-obfuscated script code.
+### Phase 5: Security Auditing & Telemetry — Script Block Logging
+Configured log auditing to maintain continuous visibility into obfuscated command execution and fileless threat activity.
 
-1. **GPO Telemetry Baseline:** Created and linked `Enable_PowerShell_Logging` at the domain level.
+1. **GPO Telemetry Baseline:** Applied `Enable_PowerShell_Logging` GPO at the domain level.
    * **Module Logging:** Enabled enterprise-wide (`*`).
    * **Script Block Logging:** Enabled execution logging (Event ID 4104).
-2. **Telemetry Validation:** Executed test payloads on a domain workstation and verified event ingestion in Windows Event Viewer (`Microsoft-Windows-PowerShell/Operational`).
-3. **Payload Inspection:** Confirmed **Event ID 4104** captured the exact de-obfuscated script block text (`solver cybertech log verification test`).
+2. **Telemetry Inspection:** Executed test commands on target endpoints and verified ingestion in Windows Event Viewer (`Microsoft-Windows-PowerShell/Operational`).
+3. **De-obfuscation Verification:** Confirmed that **Event ID 4104** captured de-obfuscated script block payloads (`solver cybertech log verification test`) for SIEM ingestion.
 
 ![PowerShell Logging GPO Configured](20-gpo-logging-configured.png)
 ![PowerShell Logging GPO Linked](21-gpo-logging-linked.png)
@@ -89,12 +89,12 @@ Implemented centralized log auditing to maintain full visibility into fileless e
 ---
 
 ### Phase 6: Storage Resilience & Volume Shadow Copy (VSS) Disaster Recovery
-To protect critical enterprise data against accidental deletion, ransomware impact, or user error, Volume Shadow Copy Service (VSS) and network discovery controls were deployed across SMB file shares.
+Protected SMB file share assets against data loss and user error using point-in-time snapshot baselines.
 
-1. **SMB Share Creation:** Configured centralized network share `\\SOLVER\CompanyShare` with domain access permissions.
-2. **VSS Snapshot Baseline:** Enabled Volume Shadow Copies on the `C:` volume hosting `CompanyShare` and created automated/manual snapshot restore points.
-3. **GPO Topology Control:** Enforced `Enable_Network_Discovery_VSS` GPO (Link-Layer Topology Discovery) so domain workstations map and discover hosts seamlessly.
-4. **Disaster Recovery Testing:** Simulated accidental deletion of `Solver_Cybertech_Confidential.txt` on a domain client and successfully restored the file intact using **Previous Versions** snapshot recovery.
+1. **Storage Deployment:** Established `\\SOLVER\CompanyShare` with domain-level security permissions.
+2. **VSS Snapshot Integration:** Enabled Volume Shadow Copies on host volumes (`C:`) to generate automated recovery points.
+3. **Network Discovery GPO:** Deployed `Enable_Network_Discovery_VSS` GPO (Link-Layer Topology Discovery) to ensure seamless endpoint discovery.
+4. **Disaster Recovery Validation:** Simulated accidental file deletion of critical assets (`Solver_Cybertech_Confidential.txt`) and completed point-in-time snapshot recovery via **Previous Versions**.
 
 ![Volume Shadow Copies Enabled](24-vss-enabled-server.png)
 ![Network Discovery GPO Configured](25-gpo-network-discovery.png)
@@ -103,11 +103,28 @@ To protect critical enterprise data against accidental deletion, ransomware impa
 
 ---
 
-## Key Defensive Engineering & Systems Engineering Takeaways
-* **Least Privilege Access:** Restricting RDP via User Rights Assignment neutralizes lateral movement by standard users.
-* **Execution Prevention & Telemetry:** Centralized PowerShell execution controls paired with Event ID 4104 Script Block Logging ensure full visibility into malicious script execution for SIEM ingestion.
-* **Storage Resilience & RPO Minimization:** Deploying Volume Shadow Copies guarantees near-instant file recovery from accidental user deletion without requiring full system backup restores.
-* **A/B Testing Rigor:** Combining positive access tests with explicit negative security checks and recovery tests proves security controls function properly under enterprise conditions.
+### Phase 7: Enterprise Remote Management — WinRM & PowerShell Remoting GPO
+Automated remote endpoint administration across domain hosts using secure, centralized Windows Remote Management (WinRM).
+
+1. **Service Automation:** Configured `Enable_WinRM_Management` GPO to enforce **Windows Remote Management (WS-Management)** service startup as **Automatic**.
+2. **Firewall Rule Enforcement:** Pushed GPO firewall rules enabling **Windows Remote Management (HTTP-In)** over TCP port 5985 domain-wide.
+3. **WinRM Listener Configuration:** Enforced listener binding policies across all network adapters.
+4. **Remoting Verification:** Established an interactive remote PowerShell session (`Enter-PSSession`) from the Domain Controller to target workstation endpoints to execute administrative tasks remotely.
+
+![WinRM Service GPO Configured](28-gpo-winrm-service-configured.png)
+![WinRM Inbound Firewall Policy](29-gpo-winrm-firewall-configured.png)
+![WinRM GPO Domain Linked](30-gpo-winrm-linked.png)
+![PowerShell Remoting Interactive Session](31-powershell-remoting-success.png)
+
+---
+
+## Core Technical Competencies Demonstrated
+* **Directory & Identity Management:** Active Directory Domain Services (AD DS), DNS Server management, Organizational Units (OU), User Lifecycle Provisioning, Role-Based Access Control (RBAC).
+* **Defensive Engineering & Group Policy:** GPO enforcement, User Rights Assignment, Least-Privilege access design, PowerShell execution controls (`AllSigned`).
+* **Security Operations & Detection Telemetry:** Centralized Script Block Logging, Module Logging, Event ID 4104 audit verification, de-obfuscation inspection for SIEM readiness.
+* **Storage Engineering & Disaster Recovery:** Volume Shadow Copy Service (VSS) configuration, SMB network sharing, Point-in-Time snapshot recovery (RPO minimization).
+* **Remote Systems Management:** Windows Remote Management (WinRM), PowerShell Remoting (`Enter-PSSession`), centralized GPO Firewall rule management.
+* **Engineering Methodology:** Rigorous A/B baseline security testing, positive access verification, and negative security testing.
 
 ---
 
